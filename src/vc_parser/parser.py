@@ -4,10 +4,20 @@ from bs4 import BeautifulSoup
 
 header = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36'}
 
+
 # Function returns HTML-code of page received from URL
-def get_html(url):
-    r = requests.get(url, headers=header)
-    return r.text
+def get_response(url):
+    response = requests.get(url, headers=header)
+    return response
+# TODO: добавить получение header (и его возвращение?)
+
+
+def get_html(response):
+    return response.text
+
+
+def get_json(response):
+    return response.json()
 
 
 # Getting ID's of publications for collection of their content
@@ -29,19 +39,25 @@ def generate_next_url(soup, page):
 
     return template
 
+
 def main():
     url = 'https://vc.ru/'
-    html = get_html(url)
+    response = get_response(url)
+    html = get_html(response)
     soup = get_soup(html)
-    pages_count = 5        # TODO: вывести в параметры
-
+    # json = get_json(response)
+    pages_count = 2        # TODO: вывести в параметры
+    
     url = generate_next_url(soup, pages_count)
-    print(url)
-    for i in range(2, pages_count):
-        html = get_html(url)
-        soup = get_soup(html)
-        url = generate_next_url(soup, pages_count)
-        print(url)
+    response = get_response(url)
+    json = get_json(response)
+    print(json)
+# TODO: Написать условие получения html или json (если в header - Content Type находится 'html' или 'json')
+# TODO: Написать функцию получения данных из JSON
+# TODO: Оттуда забрать ID и попробовать позакидывать запросы с этими ID в Postman. Посмотреть на ответ и публикации,
+#  которые там отдаются. Внимательнее отнестись к выборке и тому, насколько результат по GET запросу, соответствует
+#  реальности. Учесть, что параметр last_sorting_value больше не участвует в запросе (точнее пробую без него)
+
 
 if __name__ == '__main__':
     main()
