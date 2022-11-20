@@ -25,6 +25,15 @@ def get_soup(html):
     return soup
 
 
+def get_max_article_id(url):
+    response = get_response(url)
+    html = get_html(response)
+    soup = get_soup(html)
+    articles_ids = get_articles_ids(soup)
+    max_article_id = max((int(i) for i in articles_ids[1:-1].split(',')))
+
+    return max_article_id
+
 # TODO: class Data
 # Getting ID's of articles for collection of their content
 def get_articles_ids(soup):
@@ -172,6 +181,10 @@ def check_subsite(soup, is_authors):
     return is_subsite
 
 
+def check_adult(soup):
+    return bool(soup.find('div', {'class': 'adult'}))
+
+
 # TODO: удалить если не пригодится
 def _generate_next_url(soup, page):
     path_segment = soup.find('div', {'class': 'feed'}).get('data-feed-more-url')
@@ -183,104 +196,102 @@ def _generate_next_url(soup, page):
     return template
 
 
-def main():
-    url = 'https://vc.ru/'
+def get_data(idx, soup, response, is_adult_content, gen_url):
+    if response.status_code == 200 and not is_adult_content:
+        h1 = get_title(soup)
+        is_authors = check_author(soup)
+        is_verified = check_verified(soup)
+        is_subsite = check_subsite(soup, is_authors)
+        author, author_link = get_author(soup)
+        subsite, subsite_link = get_subsite(soup, is_subsite)
+        company, company_link = get_company(soup, is_verified, is_subsite)
+        if company is None and '/u/' not in author_link and is_subsite:
+            company, company_link = author, author_link
+        text = get_text(soup)
+        date_and_time = get_date_time(soup)
+        comments = get_comments_count(soup)
+        rating = get_rating(soup)
+        favorites = get_favorites(soup)
+        hyperlinks = get_hyperlinks(soup)
+        attachments = get_attachments(soup)
 
-    # Getting the maximum articles ID at the time the parser is launched
-    response = get_response(url)
-    html = get_html(response)
-    soup = get_soup(html)
-    articles_ids = get_articles_ids(soup)
-    max_article_id = max((int(i) for i in articles_ids[1:-1].split(',')))
+        data = {
+            'ID': idx,
+            '_generated_url': gen_url,
+            'URL': response.url,
+            'Date': date_and_time[0],
+            'Time': date_and_time[1],
+            'Title': h1,
+            'Author': author,
+            'Profile Link': author_link,
+            'Subsite': subsite,
+            'Subsite Link': subsite_link,
+            'Company': company,
+            'Company Link': company_link,
+            'Text': None,  # Can set variable to 'text' if texts needed
+            'Hyperlinks from text': hyperlinks,
+            'Attachments': attachments,
+            'Comments count': comments,
+            'Rating': rating,
+            'Favorites': favorites,
+            '_is_verified': is_verified,
+            '_is_subsite': is_subsite,
+            '_is_author': is_authors,
+            'Status Code': response.status_code
+        }
+    else:
+        data = {
+            'ID': idx,
+            '_generated_url': gen_url,
+            'URL': None,
+            'Date': None,
+            'Time': None,
+            'Title': None,
+            'Author': None,
+            'Profile Link': None,
+            'Subsite': None,
+            'Subsite Link': None,
+            'Company': None,
+            'Company Link': None,
+            'Text': None,
+            'Hyperlinks from text': None,
+            'Attachments': None,
+            'Comments count': None,
+            'Rating': None,
+            'Favorites': None,
+            '_is_verified': None,
+            '_is_subsite': None,
+            '_is_author': None,
+            'Status Code': response.status_code
+        }
+
+    return data
+
+
+def parsing(url, start_idx, articles_count=100):
     parsing_dt = datetime.now()
-
     storages.create_csv(parsing_dt)
-
-    max_article_id = 541720
-
-    articles_count = 1000
-    for i in range(max_article_id, max_article_id - articles_count, -1):
+    for i in range(start_idx, start_idx - articles_count, -1):
         # if i in db: continue
         gen_url = f'{url}{i}'
         response = get_response(gen_url)
         html = get_html(response)
         soup = get_soup(html)
-        adult_content = bool(soup.find('div', {'class': 'adult'}))
-
+        is_adult_content = check_adult(soup)
         # with open(f'{i}.html', 'x', encoding='utf-8') as file:
         #     file.write(html)
 
-        if response.status_code == 200 and not adult_content:
-            h1 = get_title(soup)
-            is_authors = check_author(soup)
-            is_verified = check_verified(soup)
-            is_subsite = check_subsite(soup, is_authors)
-            author, author_link = get_author(soup)
-            subsite, subsite_link = get_subsite(soup, is_subsite)
-            company, company_link = get_company(soup, is_verified, is_subsite)
-            if company is None and '/u/' not in author_link and is_subsite:
-                company, company_link = author, author_link
-            text = get_text(soup)
-            date_and_time = get_date_time(soup)
-            comments = get_comments_count(soup)
-            rating = get_rating(soup)
-            favorites = get_favorites(soup)
-            hyperlinks = get_hyperlinks(soup)
-            attachments = get_attachments(soup)
-
-            data = {
-                'ID': i,
-                '_generated_url': gen_url,
-                'URL': response.url,
-                'Date': date_and_time[0],
-                'Time': date_and_time[1],
-                'Title': h1,
-                'Author': author,
-                'Profile Link': author_link,
-                'Subsite': subsite,
-                'Subsite Link': subsite_link,
-                'Company': company,
-                'Company Link': company_link,
-                'Text': None,                       # Can set variable to 'text' if texts needed
-                'Hyperlinks from text': hyperlinks,
-                'Attachments': attachments,
-                'Comments count': comments,
-                'Rating': rating,
-                'Favorites': favorites,
-                '_is_verified': is_verified,
-                '_is_subsite': is_subsite,
-                '_is_author': is_authors,
-                'Status Code': response.status_code
-            }
-        else:
-            data = {
-                'ID': i,
-                '_generated_url': gen_url,
-                'URL': None,
-                'Date': None,
-                'Time': None,
-                'Title': None,
-                'Author': None,
-                'Profile Link': None,
-                'Subsite': None,
-                'Subsite Link': None,
-                'Company': None,
-                'Company Link': None,
-                'Text': None,
-                'Hyperlinks from text': None,
-                'Attachments': None,
-                'Comments count': None,
-                'Rating': None,
-                'Favorites': None,
-                '_is_verified': None,
-                '_is_subsite': None,
-                '_is_author': None,
-                'Status Code': response.status_code
-            }
+        data = get_data(i, soup, response, is_adult_content, gen_url)
         sleep(0.5)
         storages.write_csv(data, parsing_dt)
 
         print(data)
+
+
+def main():
+    url = 'https://vc.ru/'
+    max_article_id = get_max_article_id(url)
+    parsing(url, max_article_id)
 
 
 if __name__ == '__main__':

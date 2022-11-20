@@ -32,6 +32,10 @@ HEADERS = ('ID',
            'Status Code')
 
 
+def form_data(keys=HEADERS, values=(None for _ in HEADERS)):
+    return dict(zip(keys, values))
+
+
 def create_csv(parsing_datetime, header=HEADERS):
     with open(fr'files\data_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}.csv',
               'x', encoding='utf-8',  newline='') as file:
