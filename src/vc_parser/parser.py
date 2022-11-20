@@ -6,9 +6,7 @@ from datetime import datetime
 import normalizer
 import storages
 
-
 HEADER = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36'}
-# PAGE_TYPE_FEATURES = ('/s/', '/u/')
 
 
 # TODO: class ResponseComponents
@@ -34,8 +32,21 @@ def get_articles_ids(soup):
     return ids
 
 
-def get_title(soup):
+def get_article_info(soup):
+    article_info = soup.find('div', {'class': 'l-hidden entry_data'}).get('data-article-info')
 
+    if article_info is None:
+        article_info = soup.find('div', {'class': 'l-hidden entry_data'}).text
+
+    try:
+        article_info = json.loads(article_info)
+    except Exception:
+        article_info = json.loads(normalizer.normalize_json(article_info))
+
+    return article_info
+
+
+def get_title(soup):
     try:
         h1 = soup.find('h1').text
     except AttributeError:
@@ -48,18 +59,35 @@ def get_title(soup):
     return normalizer.normalize_h1(h1) if h1 is not None else h1
 
 
+def get_text(soup):
+    text_blocks = soup.find('div', {'class': 'content content--full'}).find_all('div', {'class': 'l-island-a'})
+    return normalizer.normalize_text(text_blocks)
+
+
+def get_hyperlinks(soup):
+    hyperlinks = soup.find_all('a', {'rel': 'nofollow noreferrer noopener'})
+    hyperlinks = json.dumps(normalizer.normalize_hyperlinks(hyperlinks))
+    return hyperlinks
+
+
+def get_attachments(soup):
+    videos = soup.find_all('div', {'data-andropov-type': 'video'})
+    images = soup.find_all('div', {'data-andropov-type': 'image'})
+    tweets = soup.find_all('a', {'class': 'andropov_tweet__date'})
+    return json.dumps(normalizer.normalize_attachments(videos, images, tweets))
+
+
 # Getting author name and profile link.
 # There is an important rule in site content logic: if there is no subsite, then in the subsite block - the author
 def get_author(soup):
-
     try:
         author = soup.find('a', {'class': 'content-header-author__name'}).text
-        profile_link = soup.find('a', {'class': 'content-header-author__name'}).get('href')
+        author_link = soup.find('a', {'class': 'content-header-author__name'}).get('href')
     except AttributeError:
         author = soup.find('div', {'class': 'content-header-author__name'}).text
-        profile_link = soup.find('div', {'class': 'content-header__info'}).find('a').get('href')
+        author_link = soup.find('div', {'class': 'content-header__info'}).find('a').get('href')
 
-    return normalizer.normalize_author(author), profile_link
+    return normalizer.normalize_author(author), author_link
 
 
 # Getting subsite (articles subcategory) name and link
@@ -67,7 +95,6 @@ def get_author(soup):
 # 1. Presence of subfolders /s/ and /u/ in the URL
 # 2. Presence of account verification
 def get_subsite(soup, is_subsite):
-
     subsite = soup.find('div', {'class': 'content-header-author__name'}).text
     subsite_link = soup.find('div', {'class': 'content-header__info'}).find('a').get('href')
 
@@ -80,7 +107,6 @@ def get_subsite(soup, is_subsite):
 # Getting company name and link
 # If
 def get_company(soup, is_verified, is_subsite):
-
     company = soup.find('div', {'class': 'content-header-author__name'}).text
     company_link = soup.find('div', {'class': 'content-header__info'}).find('a').get('href')
 
@@ -88,10 +114,26 @@ def get_company(soup, is_verified, is_subsite):
         company, company_link = None, None
 
     return normalizer.normalize_company(company) if company is not None else company, company_link
-# TODO: Бывают случаи, когда компания верифицирована, имеет модный URL, но выпустила публикацию в подсайте.
-#  В таких случаях в этой функции, если добавить соответствующее условие, находится ссылка на подсайт и он же туда
-#  пишется соответственно (есть пример в файле 'data_17-11-2022_17-33-18' с тинковым и ещё одним под ним).
-#  Нужно дописать функцию
+
+
+def get_date_time(soup):
+    date_and_time = soup.find('time').get('title')
+    return date_and_time.split()
+
+
+def get_comments_count(soup):
+    article_info = get_article_info(soup)
+    return article_info['comments']
+
+
+def get_rating(soup):
+    article_info = get_article_info(soup)
+    return article_info['likes']
+
+
+def get_favorites(soup):
+    article_info = get_article_info(soup)
+    return article_info['favorites']
 
 
 def check_author(soup):
@@ -112,7 +154,6 @@ def check_author(soup):
 
 
 def check_verified(soup):
-
     try:
         is_verified = bool(soup.find('div', {'class': 'content-header-author__approved'}))
     except AttributeError:
@@ -122,8 +163,7 @@ def check_verified(soup):
 
 
 def check_subsite(soup, is_authors):
-    article_info = soup.find('div', {'class': 'l-hidden entry_data'}).get('data-article-info')
-    article_info = json.loads(article_info)
+    article_info = get_article_info(soup)
 
     is_subsite = (article_info['subsite_label'] != 'unknown' and
                   article_info['subsite_label'].lower() != article_info['author_name'].lower() and
@@ -133,7 +173,7 @@ def check_subsite(soup, is_authors):
 
 
 # TODO: удалить если не пригодится
-def generate_next_url(soup, page):
+def _generate_next_url(soup, page):
     path_segment = soup.find('div', {'class': 'feed'}).get('data-feed-more-url')
     last_id = soup.find('div', {'class': 'feed'}).get('data-feed-last-id')
     last_sorting_value = soup.find('div', {'class': 'feed'}).get('data-feed-last-sorting-value')
@@ -153,35 +193,60 @@ def main():
     articles_ids = get_articles_ids(soup)
     max_article_id = max((int(i) for i in articles_ids[1:-1].split(',')))
     parsing_dt = datetime.now()
-    max_article_id = 541503
 
-    articles_count = 30
+    storages.create_csv(parsing_dt)
+
+    max_article_id = 541720
+
+    articles_count = 1000
     for i in range(max_article_id, max_article_id - articles_count, -1):
-        article_url = f'{url}{i}'
-        response = get_response(article_url)
+        # if i in db: continue
+        gen_url = f'{url}{i}'
+        response = get_response(gen_url)
         html = get_html(response)
         soup = get_soup(html)
+        adult_content = bool(soup.find('div', {'class': 'adult'}))
 
-        if response.status_code == 200:
+        # with open(f'{i}.html', 'x', encoding='utf-8') as file:
+        #     file.write(html)
+
+        if response.status_code == 200 and not adult_content:
             h1 = get_title(soup)
             is_authors = check_author(soup)
             is_verified = check_verified(soup)
             is_subsite = check_subsite(soup, is_authors)
-            author, profile_link = get_author(soup)
+            author, author_link = get_author(soup)
             subsite, subsite_link = get_subsite(soup, is_subsite)
             company, company_link = get_company(soup, is_verified, is_subsite)
+            if company is None and '/u/' not in author_link and is_subsite:
+                company, company_link = author, author_link
+            text = get_text(soup)
+            date_and_time = get_date_time(soup)
+            comments = get_comments_count(soup)
+            rating = get_rating(soup)
+            favorites = get_favorites(soup)
+            hyperlinks = get_hyperlinks(soup)
+            attachments = get_attachments(soup)
 
             data = {
                 'ID': i,
-                '_URL': article_url,
+                '_generated_url': gen_url,
                 'URL': response.url,
+                'Date': date_and_time[0],
+                'Time': date_and_time[1],
                 'Title': h1,
                 'Author': author,
-                'Profile Link': profile_link,
+                'Profile Link': author_link,
                 'Subsite': subsite,
                 'Subsite Link': subsite_link,
                 'Company': company,
                 'Company Link': company_link,
+                'Text': None,                       # Can set variable to 'text' if texts needed
+                'Hyperlinks from text': hyperlinks,
+                'Attachments': attachments,
+                'Comments count': comments,
+                'Rating': rating,
+                'Favorites': favorites,
                 '_is_verified': is_verified,
                 '_is_subsite': is_subsite,
                 '_is_author': is_authors,
@@ -190,8 +255,10 @@ def main():
         else:
             data = {
                 'ID': i,
-                '_URL': None,
-                'URL': article_url,
+                '_generated_url': gen_url,
+                'URL': None,
+                'Date': None,
+                'Time': None,
                 'Title': None,
                 'Author': None,
                 'Profile Link': None,
@@ -199,17 +266,21 @@ def main():
                 'Subsite Link': None,
                 'Company': None,
                 'Company Link': None,
+                'Text': None,
+                'Hyperlinks from text': None,
+                'Attachments': None,
+                'Comments count': None,
+                'Rating': None,
+                'Favorites': None,
                 '_is_verified': None,
                 '_is_subsite': None,
                 '_is_author': None,
                 'Status Code': response.status_code
             }
-        # TODO: достать из ифа и заменить тернарным выражением
-        sleep(1)
+        sleep(0.5)
         storages.write_csv(data, parsing_dt)
+
         print(data)
-        # with open(f'{i}.html', 'x', encoding='utf-8') as file:
-        #     file.write(html)
 
 
 if __name__ == '__main__':
