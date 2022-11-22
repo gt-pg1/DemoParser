@@ -1,27 +1,33 @@
 import re
+from typing import Iterable
 
-data_trash = ('Статьи редакции', )
+DATA_TRASH = ('Статьи редакции',)
 
 
-def normalize_h1(h1):
-    if data_trash[0] in h1:
-        h1 = h1.replace(data_trash[0], '')
+def normalize_title(h1: str) -> str:
+    if DATA_TRASH[0] in h1:
+        h1 = h1.replace(DATA_TRASH[0], '')
     return h1.strip()
 
 
-def normalize_author(author):
+def normalize_author(author: str) -> str:
     return author.strip()
 
 
-def normalize_subsite(subsite):
+def normalize_subsite(subsite: str) -> str:
     return subsite.strip()
 
 
-def normalize_company(company):
+def normalize_company(company: str) -> str:
     return company.strip()
 
 
-def normalize_json(dirty_json: str):
+def normalaize_date_time(date_and_time: str) -> (str, str):
+    date_and_time = date_and_time.split()
+    return date_and_time[0], date_and_time[1]
+
+
+def normalize_json(dirty_json: str) -> str:
     occurrences = re.findall(r': \".*\"{1,3}.*\"', dirty_json)
 
     for occurrence in occurrences:
@@ -42,7 +48,7 @@ def normalize_json(dirty_json: str):
     return dirty_json
 
 
-def normalize_text(text_blocks: list):
+def normalize_text(text_blocks: Iterable[str]) -> str:
     texts = []
     for block in text_blocks:
         if 'embed' in str(block) or 'andropov' in str(block):
@@ -54,26 +60,25 @@ def normalize_text(text_blocks: list):
     del_idx = []
     for idx, value in enumerate(texts):
         find_json = re.search(r'{.*}', value)
-        find_views = re.search(r'\d{1,5}\sпросмотров', value)
-        # TODO: Это плохо. Нужно чтобы только эта маска была в блоке и ничего больше
+        find_views = re.search(r'^\d{1,5}\sпросмотров$', value)
         if find_json is not None or find_views is not None:
             del_idx.append(idx)
 
-    for idx in del_idx:
-        del texts[idx]
-    # TODO: Это тоже плохо. Если в списке 2 и более, то вывалится в IndexError
+    texts = [value for idx, value in enumerate(texts) if idx not in del_idx]
 
     return '\n'.join(texts)
 
 
-def normalize_hyperlinks(dirty_hyperlinks: list):
+def normalize_hyperlinks(dirty_hyperlinks: Iterable[str]) -> list:
     hyperlinks = []
     for html_tag in dirty_hyperlinks:
         hyperlinks.append(html_tag.get('href'))
     return hyperlinks
 
 
-def normalize_attachments(dirty_video, dirty_images, dirty_tweets):
+def normalize_attachments(
+        dirty_video: Iterable[str], dirty_images: Iterable[str], dirty_tweets: Iterable[str]
+) -> dict:
     attachments = dict()
 
     if dirty_video:

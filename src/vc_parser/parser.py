@@ -5,43 +5,45 @@ import json
 from datetime import datetime
 import normalizer
 import storages
+from typing import Union, NoReturn
 
 HEADER = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36'}
 
 
 # TODO: class ResponseComponents
 # Function returns HTML-code of page received from URL
-def get_response(url):
+def get_response(url: str) -> requests.Response:
     response = requests.get(url, headers=HEADER)
     return response
 
 
-def get_html(response):
+def get_html(response: requests.Response) -> str:
     return response.text
 
 
-def get_soup(html):
+def get_soup(html: str) -> BeautifulSoup:
     soup = BeautifulSoup(html, 'lxml')
     return soup
 
 
-def get_max_article_id(url):
-    response = get_response(url)
-    html = get_html(response)
-    soup = get_soup(html)
-    articles_ids = get_articles_ids(soup)
-    max_article_id = max((int(i) for i in articles_ids[1:-1].split(',')))
-
-    return max_article_id
-
-# TODO: class Data
+# TODO: class DataCollector
 # Getting ID's of articles for collection of their content
-def get_articles_ids(soup):
+def get_articles_ids(soup: BeautifulSoup) -> str:
     ids = soup.find('div', {'class': 'feed'}).get('data-feed-exclude-ids')
     return ids
 
 
-def get_article_info(soup):
+def get_max_article_id(url: str) -> int:
+    response = get_response(url)
+    html = get_html(response)
+    soup = get_soup(html)
+    articles_ids = get_articles_ids(soup)
+    max_article_id = max((int(i) for i in articles_ids[1:-1].split(',')))        # '[12,34,56]' -> 56
+
+    return max_article_id
+
+
+def get_article_info(soup: BeautifulSoup) -> dict:
     article_info = soup.find('div', {'class': 'l-hidden entry_data'}).get('data-article-info')
 
     if article_info is None:
@@ -55,31 +57,33 @@ def get_article_info(soup):
     return article_info
 
 
-def get_title(soup):
+def get_title(soup: BeautifulSoup) -> Union[str, None]:
     try:
         h1 = soup.find('h1').text
+        h1 = normalizer.normalize_title(h1)
     except AttributeError:
 
         try:
             h1 = soup.find_all('div', {'class': 'content-title content-title--short l-island-a'})[1].text
+            h1 = normalizer.normalize_title(h1)
         except IndexError:
             h1 = None
 
-    return normalizer.normalize_h1(h1) if h1 is not None else h1
+    return h1
 
 
-def get_text(soup):
+def get_text(soup: BeautifulSoup) -> str:
     text_blocks = soup.find('div', {'class': 'content content--full'}).find_all('div', {'class': 'l-island-a'})
     return normalizer.normalize_text(text_blocks)
 
 
-def get_hyperlinks(soup):
+def get_hyperlinks(soup: BeautifulSoup) -> str:
     hyperlinks = soup.find_all('a', {'rel': 'nofollow noreferrer noopener'})
     hyperlinks = json.dumps(normalizer.normalize_hyperlinks(hyperlinks))
     return hyperlinks
 
 
-def get_attachments(soup):
+def get_attachments(soup: BeautifulSoup) -> str:
     videos = soup.find_all('div', {'data-andropov-type': 'video'})
     images = soup.find_all('div', {'data-andropov-type': 'image'})
     tweets = soup.find_all('a', {'class': 'andropov_tweet__date'})
@@ -88,7 +92,7 @@ def get_attachments(soup):
 
 # Getting author name and profile link.
 # There is an important rule in site content logic: if there is no subsite, then in the subsite block - the author
-def get_author(soup):
+def get_author(soup: BeautifulSoup) -> (str, str):
     try:
         author = soup.find('a', {'class': 'content-header-author__name'}).text
         author_link = soup.find('a', {'class': 'content-header-author__name'}).get('href')
@@ -103,7 +107,7 @@ def get_author(soup):
 # There are 2 signs that a profile is not a subsite:
 # 1. Presence of subfolders /s/ and /u/ in the URL
 # 2. Presence of account verification
-def get_subsite(soup, is_subsite):
+def get_subsite(soup: BeautifulSoup, is_subsite: bool) -> (Union[str, None], Union[str, None]):
     subsite = soup.find('div', {'class': 'content-header-author__name'}).text
     subsite_link = soup.find('div', {'class': 'content-header__info'}).find('a').get('href')
 
@@ -115,7 +119,7 @@ def get_subsite(soup, is_subsite):
 
 # Getting company name and link
 # If
-def get_company(soup, is_verified, is_subsite):
+def get_company(soup: BeautifulSoup, is_subsite: bool) -> (Union[str, None], Union[str, None]):
     company = soup.find('div', {'class': 'content-header-author__name'}).text
     company_link = soup.find('div', {'class': 'content-header__info'}).find('a').get('href')
 
@@ -125,27 +129,28 @@ def get_company(soup, is_verified, is_subsite):
     return normalizer.normalize_company(company) if company is not None else company, company_link
 
 
-def get_date_time(soup):
+def get_date_time(soup: BeautifulSoup) -> (str, str):
     date_and_time = soup.find('time').get('title')
-    return date_and_time.split()
+    date, time = normalizer.normalaize_date_time(date_and_time)
+    return date, time
 
 
-def get_comments_count(soup):
+def get_comments_count(soup: BeautifulSoup) -> int:
     article_info = get_article_info(soup)
     return article_info['comments']
 
 
-def get_rating(soup):
+def get_rating(soup: BeautifulSoup) -> int:
     article_info = get_article_info(soup)
     return article_info['likes']
 
 
-def get_favorites(soup):
+def get_favorites(soup: BeautifulSoup) -> int:
     article_info = get_article_info(soup)
     return article_info['favorites']
 
 
-def check_author(soup):
+def check_author(soup: BeautifulSoup) -> bool:
     authors_fields = list()
 
     try:
@@ -162,7 +167,7 @@ def check_author(soup):
     return is_authors
 
 
-def check_verified(soup):
+def check_verified(soup: BeautifulSoup) -> bool:
     try:
         is_verified = bool(soup.find('div', {'class': 'content-header-author__approved'}))
     except AttributeError:
@@ -171,7 +176,7 @@ def check_verified(soup):
     return is_verified
 
 
-def check_subsite(soup, is_authors):
+def check_subsite(soup: BeautifulSoup, is_authors: bool) -> bool:
     article_info = get_article_info(soup)
 
     is_subsite = (article_info['subsite_label'] != 'unknown' and
@@ -181,34 +186,31 @@ def check_subsite(soup, is_authors):
     return is_subsite
 
 
-def check_adult(soup):
+def check_adult(soup: BeautifulSoup) -> bool:
     return bool(soup.find('div', {'class': 'adult'}))
 
 
-# TODO: удалить если не пригодится
-def _generate_next_url(soup, page):
-    path_segment = soup.find('div', {'class': 'feed'}).get('data-feed-more-url')
-    last_id = soup.find('div', {'class': 'feed'}).get('data-feed-last-id')
-    last_sorting_value = soup.find('div', {'class': 'feed'}).get('data-feed-last-sorting-value')
-    exclude_ids = soup.find('div', {'class': 'feed'}).get('data-feed-exclude-ids')
-    template = f'{path_segment}?last_id={last_id}&last_sorting_value={last_sorting_value}&page={page}&exclude_ids={exclude_ids}&mode=raw'
-
-    return template
+def check_parsable(response: requests.Response, is_adult_contnet: bool) -> bool:
+    return response.status_code == 200 and not is_adult_contnet
 
 
-def get_data(idx, soup, response, is_adult_content, gen_url):
-    if response.status_code == 200 and not is_adult_content:
+def get_data(
+        idx: int, soup: BeautifulSoup, response: requests.Response, is_parsable: bool, gen_url: str
+) -> dict:
+    data = dict()
+
+    if is_parsable:
         h1 = get_title(soup)
         is_authors = check_author(soup)
         is_verified = check_verified(soup)
         is_subsite = check_subsite(soup, is_authors)
         author, author_link = get_author(soup)
         subsite, subsite_link = get_subsite(soup, is_subsite)
-        company, company_link = get_company(soup, is_verified, is_subsite)
+        company, company_link = get_company(soup, is_subsite)
         if company is None and '/u/' not in author_link and is_subsite:
             company, company_link = author, author_link
         text = get_text(soup)
-        date_and_time = get_date_time(soup)
+        date, time = get_date_time(soup)
         comments = get_comments_count(soup)
         rating = get_rating(soup)
         favorites = get_favorites(soup)
@@ -219,8 +221,8 @@ def get_data(idx, soup, response, is_adult_content, gen_url):
             'ID': idx,
             '_generated_url': gen_url,
             'URL': response.url,
-            'Date': date_and_time[0],
-            'Time': date_and_time[1],
+            'Date': date,
+            'Time': time,
             'Title': h1,
             'Author': author,
             'Profile Link': author_link,
@@ -268,29 +270,60 @@ def get_data(idx, soup, response, is_adult_content, gen_url):
     return data
 
 
-def parsing(url, start_idx, articles_count=100):
+# TODO: добавить условия и параметры на запись в json и csv
+def parsing(url: str, start_idx: int, articles_count=5) -> NoReturn:
     parsing_dt = datetime.now()
+    final_idx = start_idx - articles_count
     storages.create_csv(parsing_dt)
-    for i in range(start_idx, start_idx - articles_count, -1):
+    storages.create_json(parsing_dt)
+
+    # for i in range(start_idx, final_idx, -1):
+    #     # if i in db: continue
+    #     gen_url = f'{url}{i}'
+    #     response = get_response(gen_url)
+    #     html = get_html(response)
+    #     soup = get_soup(html)
+    #     is_adult_content = check_adult(soup)
+    #     is_parsable = response.status_code == 200 and not is_adult_content
+    #
+    #     data = get_data(i, soup, is_parsable, gen_url)
+    #     sleep(0.5)
+    #     storages.write_csv(data, parsing_dt)
+    #     storages.write_json(data, parsing_dt, i, final_idx + 1)
+    #
+    #     print(data)
+
+    while True:
         # if i in db: continue
-        gen_url = f'{url}{i}'
+        idx = start_idx
+        gen_url = f'{url}{idx}'
         response = get_response(gen_url)
         html = get_html(response)
         soup = get_soup(html)
         is_adult_content = check_adult(soup)
-        # with open(f'{i}.html', 'x', encoding='utf-8') as file:
-        #     file.write(html)
+        is_parsable = check_parsable(response, is_adult_content)
 
-        data = get_data(i, soup, response, is_adult_content, gen_url)
-        sleep(0.5)
-        storages.write_csv(data, parsing_dt)
+        data = get_data(idx, soup, response, is_parsable, gen_url)
 
         print(data)
 
+        start_idx -= 1
+        if is_parsable:
+            articles_count -= 1
+            storages.write_csv(data, parsing_dt)
+            storages.write_json(data, parsing_dt, articles_count)
+        if articles_count == 0:
+            break
 
-def main():
+        sleep(0.5)
+
+    storages.finalize_json(parsing_dt)
+
+
+def main() -> NoReturn:
     url = 'https://vc.ru/'
-    max_article_id = get_max_article_id(url)
+    # max_article_id = get_max_article_id(url)
+    max_article_id = 540720
     parsing(url, max_article_id)
 
 

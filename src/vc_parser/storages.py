@@ -1,5 +1,7 @@
 import csv
+import json
 from datetime import datetime
+from typing import NoReturn
 
 # class Writer
 #   def write_json
@@ -32,40 +34,47 @@ HEADERS = ('ID',
            'Status Code')
 
 
-def form_data(keys=HEADERS, values=(None for _ in HEADERS)):
+def form_data(keys=HEADERS, values=(None for _ in HEADERS)) -> dict:
     return dict(zip(keys, values))
 
 
-def create_csv(parsing_datetime, header=HEADERS):
-    with open(fr'files\data_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}.csv',
-              'x', encoding='utf-8',  newline='') as file:
+def create_csv(parsing_datetime: datetime, header=HEADERS) -> NoReturn:
+    with open(
+            fr'files\data_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}.csv', 'x', encoding='utf-8',  newline=''
+    ) as file:
         writer = csv.writer(file)
         writer.writerow(header)
 
 
-def write_csv(data, parsing_datetime):
-    with open(fr'files\data_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}.csv',
-              'a', encoding='utf-8',  newline='') as file:
+def write_csv(data: dict, parsing_datetime: datetime) -> NoReturn:
+    with open(
+            fr'files\data_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}.csv', 'a', encoding='utf-8',  newline=''
+              ) as file:
         writer = csv.writer(file)
-        writer.writerow((data['ID'],
-                         data['_generated_url'],
-                         data['URL'],
-                         data['Date'],
-                         data['Time'],
-                         data['Title'],
-                         data['Author'],
-                         data['Profile Link'],
-                         data['Subsite'],
-                         data['Subsite Link'],
-                         data['Company'],
-                         data['Company Link'],
-                         data['Text'],
-                         data['Hyperlinks from text'],
-                         data['Attachments'],
-                         data['Comments count'],
-                         data['Rating'],
-                         data['Favorites'],
-                         data['_is_verified'],
-                         data['_is_subsite'],
-                         data['_is_author'],
-                         data['Status Code']))
+        writer.writerow((data[value] for value in HEADERS))
+
+
+def create_json(parsing_datetime: datetime) -> NoReturn:
+    with open(
+            fr'files\data_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}.json', 'x', encoding='utf-8', newline=''
+    ) as file:
+        file.write('[\n')
+
+
+def write_json(data: dict, parsing_datetime: datetime, articles_count: int) -> NoReturn:
+    with open(
+            fr'files\data_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}.json', 'a', encoding='utf-8',  newline=''
+    ) as file:
+        json_object = json.dumps(data, indent=4)
+
+        if articles_count != 0:
+            file.write(json_object + ',\n')
+        else:
+            file.write(json_object)
+
+
+def finalize_json(parsing_datetime: datetime):
+    with open(
+            fr'files\data_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}.json', 'a', encoding='utf-8', newline=''
+    ) as file:
+        file.write('\n]')
