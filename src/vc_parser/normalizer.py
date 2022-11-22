@@ -48,7 +48,7 @@ def normalize_json(dirty_json: str) -> str:
     return dirty_json
 
 
-def normalize_text(text_blocks: Iterable[str]) -> str:
+def normalize_text(text_blocks: Iterable) -> str:
     texts = []
     for block in text_blocks:
         if 'embed' in str(block) or 'andropov' in str(block):
@@ -69,7 +69,7 @@ def normalize_text(text_blocks: Iterable[str]) -> str:
     return '\n'.join(texts)
 
 
-def normalize_hyperlinks(dirty_hyperlinks: Iterable[str]) -> list:
+def normalize_hyperlinks(dirty_hyperlinks: Iterable) -> list:
     hyperlinks = []
     for html_tag in dirty_hyperlinks:
         hyperlinks.append(html_tag.get('href'))
@@ -77,7 +77,7 @@ def normalize_hyperlinks(dirty_hyperlinks: Iterable[str]) -> list:
 
 
 def normalize_attachments(
-        dirty_video: Iterable[str], dirty_images: Iterable[str], dirty_tweets: Iterable[str]
+        dirty_video: Iterable, dirty_images: Iterable, dirty_tweets: Iterable
 ) -> dict:
     attachments = dict()
 
