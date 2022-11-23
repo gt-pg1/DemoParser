@@ -22,7 +22,7 @@ def normalize_company(company: str) -> str:
     return company.strip()
 
 
-def normalaize_date_time(date_and_time: str) -> (str, str):
+def normalize_date_time(date_and_time: str) -> (str, str):
     date_and_time = date_and_time.split()
     return date_and_time[0], date_and_time[1]
 
@@ -39,8 +39,10 @@ def normalize_json(dirty_json: str) -> str:
         dq_index = 0
         for i in range(dq_count):
             dq_index = substring.find('"', dq_index + 1)
+
             if i == 0 or i == dq_count - 1:
                 continue
+
             substring = substring[:dq_index] + "'" + substring[dq_index + 1:]
 
         dirty_json = before + substring + after
@@ -53,14 +55,16 @@ def normalize_text(text_blocks: Iterable) -> str:
     for block in text_blocks:
         if 'embed' in str(block) or 'andropov' in str(block):
             continue
+
         text = block.text.strip()
         texts.append(text)
 
-    # Deleting data with service json
+    # Deleting data with json-blocks and views
     del_idx = []
     for idx, value in enumerate(texts):
         find_json = re.search(r'{.*}', value)
         find_views = re.search(r'^\d{1,5}\sпросмотров$', value)
+
         if find_json is not None or find_views is not None:
             del_idx.append(idx)
 
@@ -71,8 +75,10 @@ def normalize_text(text_blocks: Iterable) -> str:
 
 def normalize_hyperlinks(dirty_hyperlinks: Iterable) -> list:
     hyperlinks = []
+
     for html_tag in dirty_hyperlinks:
         hyperlinks.append(html_tag.get('href'))
+
     return hyperlinks
 
 
@@ -83,20 +89,39 @@ def normalize_attachments(
 
     if dirty_video:
         video = []
+
         for html_tag in dirty_video:
-            video.append(html_tag.get('data-video-iframe'))
+            iframe = html_tag.get('data-video-iframe')
+            mp4 = html_tag.get('data-video-mp4')
+
+            if iframe:
+                video.append(iframe)
+
+            if mp4:
+                video.append(mp4)
+
         attachments['video'] = video
 
     if dirty_images:
         images = []
+
         for html_tag in dirty_images:
-            images.append(html_tag.get('data-image-src'))
+            image_src = html_tag.get('data-image-src')
+
+            if image_src:
+                images.append(image_src)
+
         attachments['images'] = images
 
     if dirty_tweets:
         tweets = []
+
         for html_tag in dirty_tweets:
-            tweets.append(html_tag.get('href'))
+            href = html_tag.find('href')
+
+            if href:
+                tweets.append(href)
+
         attachments['tweets'] = tweets
 
     return attachments

@@ -10,8 +10,7 @@ from typing import Union, NoReturn
 HEADER = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36'}
 
 
-# TODO: class ResponseComponents
-# Function returns HTML-code of page received from URL
+# Function returns ...
 def get_response(url: str) -> requests.Response:
     response = requests.get(url, headers=HEADER)
     return response
@@ -26,19 +25,20 @@ def get_soup(html: str) -> BeautifulSoup:
     return soup
 
 
-# TODO: class DataCollector
 # Getting ID's of articles for collection of their content
 def get_articles_ids(soup: BeautifulSoup) -> str:
     ids = soup.find('div', {'class': 'feed'}).get('data-feed-exclude-ids')
     return ids
 
 
+# Finds the last article ID at parsing time
 def get_max_article_id(url: str) -> int:
     response = get_response(url)
     html = get_html(response)
     soup = get_soup(html)
     articles_ids = get_articles_ids(soup)
-    max_article_id = max((int(i) for i in articles_ids[1:-1].split(',')))        # '[12,34,56]' -> 56
+    max_article_id = max((int(i) for i in articles_ids[1:-1].split(',')))
+    # '[12,34,56]' -> 56
 
     return max_article_id
 
@@ -91,7 +91,6 @@ def get_attachments(soup: BeautifulSoup) -> str:
 
 
 # Getting author name and profile link.
-# There is an important rule in site content logic: if there is no subsite, then in the subsite block - the author
 def get_author(soup: BeautifulSoup) -> (str, str):
     try:
         author = soup.find('a', {'class': 'content-header-author__name'}).text
@@ -131,7 +130,7 @@ def get_company(soup: BeautifulSoup, is_subsite: bool) -> (Union[str, None], Uni
 
 def get_date_time(soup: BeautifulSoup) -> (str, str):
     date_and_time = soup.find('time').get('title')
-    date, time = normalizer.normalaize_date_time(date_and_time)
+    date, time = normalizer.normalize_date_time(date_and_time)
     return date, time
 
 
@@ -190,8 +189,8 @@ def check_adult(soup: BeautifulSoup) -> bool:
     return bool(soup.find('div', {'class': 'adult'}))
 
 
-def check_parsable(response: requests.Response, is_adult_contnet: bool) -> bool:
-    return response.status_code == 200 and not is_adult_contnet
+def check_parsable(response: requests.Response, is_adult_content: bool) -> bool:
+    return response.status_code == 200 and not is_adult_content
 
 
 def get_data(
@@ -230,7 +229,7 @@ def get_data(
             'Subsite Link': subsite_link,
             'Company': company,
             'Company Link': company_link,
-            'Text': None,  # Can set variable to 'text' if texts needed
+            'Text': text,
             'Hyperlinks from text': hyperlinks,
             'Attachments': attachments,
             'Comments count': comments,
@@ -270,10 +269,9 @@ def get_data(
     return data
 
 
-# TODO: добавить условия и параметры на запись в json и csv
 def parsing(
-        url: str, start_idx: int, articles_count: int,
-        delay: float, write_csv: bool, write_json: bool, source: str
+        url: str, start_idx: int, articles_count: int, delay: float,
+        write_csv: bool, write_json: bool, write_texts: bool, source: str
 ) -> NoReturn:
 
     parsing_dt = datetime.now()
@@ -285,24 +283,7 @@ def parsing(
     if write_json:
         storages.create_json(parsing_dt, source)
 
-    # for i in range(start_idx, final_idx, -1):
-    #     # if i in db: continue
-    #     gen_url = f'{url}{i}'
-    #     response = get_response(gen_url)
-    #     html = get_html(response)
-    #     soup = get_soup(html)
-    #     is_adult_content = check_adult(soup)
-    #     is_parsable = response.status_code == 200 and not is_adult_content
-    #
-    #     data = get_data(i, soup, is_parsable, gen_url)
-    #     sleep(0.5)
-    #     storages.write_csv(data, parsing_dt)
-    #     storages.write_json(data, parsing_dt, i, final_idx + 1)
-    #
-    #     print(data)
-
     while True:
-        # if i in db: continue
         idx = start_idx
         gen_url = f'{url}{idx}'
         response = get_response(gen_url)
@@ -320,7 +301,7 @@ def parsing(
             articles_count -= 1
 
             if write_csv:
-                storages.write_csv(data, parsing_dt, source)
+                storages.write_csv(data, parsing_dt, source, write_texts)
             if write_json:
                 storages.write_json(data, parsing_dt, source, articles_count)
 

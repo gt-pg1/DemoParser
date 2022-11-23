@@ -3,15 +3,7 @@ import json
 from datetime import datetime
 from typing import NoReturn
 
-# class Writer
-#   def write_json
-#   def write_csv
-# class DataBaseConnector
-#   def write_db
-#   def write_text
-
 HEADERS = ('ID',
-           '_generated_url',
            'URL',
            'Date',
            'Time',
@@ -22,45 +14,52 @@ HEADERS = ('ID',
            'Subsite Link',
            'Company',
            'Company Link',
-           'Text',
            'Hyperlinks from text',
            'Attachments',
            'Comments count',
            'Rating',
-           'Favorites'
-           )
-
-
-def form_data(keys=HEADERS, values=(None for _ in HEADERS)) -> dict:
-    return dict(zip(keys, values))
+           'Favorites')
 
 
 def create_csv(parsing_datetime: datetime, source: str, header=HEADERS) -> NoReturn:
     with open(
-            fr'files\{source}_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}.csv', 'x', encoding='utf-8',  newline=''
+            fr'files\{source}_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}.csv',
+            'x', encoding='utf-8',  newline=''
     ) as file:
         writer = csv.writer(file)
         writer.writerow(header)
 
 
-def write_csv(data: dict, parsing_datetime: datetime, source: str) -> NoReturn:
+def write_csv(data: dict, parsing_datetime: datetime, source: str, write_texts: bool) -> NoReturn:
+
     with open(
-            fr'files\{source}_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}.csv', 'a', encoding='utf-8',  newline=''
-              ) as file:
+            fr'files\{source}_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}.csv',
+            'a', encoding='utf-8',  newline=''
+    ) as file:
         writer = csv.writer(file)
         writer.writerow((data[value] for value in HEADERS))
+
+    if write_texts:
+        with open(
+                fr'files\{source}_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}_texts.csv',
+                'a', encoding='utf-8', newline=''
+        ) as file:
+            writer = csv.writer(file)
+            writer.writerow((data['ID'], data['Text']))
 
 
 def create_json(parsing_datetime: datetime, source: str) -> NoReturn:
     with open(
-            fr'files\{source}_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}.json', 'x', encoding='utf-8', newline=''
+            fr'files\{source}_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}.json',
+            'x', encoding='utf-8', newline=''
     ) as file:
         file.write('[\n')
 
 
 def write_json(data: dict, parsing_datetime: datetime, source: str, articles_count: int) -> NoReturn:
     with open(
-            fr'files\{source}_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}.json', 'a', encoding='utf-8',  newline=''
+            fr'files\{source}_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}.json',
+            'a', encoding='utf-8',  newline=''
     ) as file:
         json_object = json.dumps(data, indent=4)
 
@@ -72,6 +71,7 @@ def write_json(data: dict, parsing_datetime: datetime, source: str, articles_cou
 
 def finalize_json(parsing_datetime: datetime, source: str):
     with open(
-            fr'files\{source}_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}.json', 'a', encoding='utf-8', newline=''
+            fr'files\{source}_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}.json',
+            'a', encoding='utf-8', newline=''
     ) as file:
         file.write('\n]')
