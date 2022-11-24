@@ -39,8 +39,10 @@
 ![Example CSV](img/csv1.png "Example CSV")
 ![Example CSV](img/csv2.png "Example CSV")
 ![Example CSV](img/csv3.png "Example CSV")
+
 - JSON
 ![Example JSON](img/json.png "Example JSON")
+
 - CSV (Texts)
 ![Example Texts](img/csv_texts.png "Example Texts")
 
@@ -56,7 +58,8 @@ lxml==4.9.1
 ```
 
 ### Запуск и аргументы командной строки
-Запуск осуществляется из командной строки.
+Запуск осуществляется из командной строки, из файла
+`src/vc_parser/parser.py`
 
 Обязательным аргументом необходимо передать площадку, с которой будут собираться данные: **vc** или **dtf**
 
