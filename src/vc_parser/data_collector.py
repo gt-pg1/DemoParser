@@ -4,45 +4,49 @@ from time import sleep
 import json
 from datetime import datetime
 import normalizer
-import storages
+import writers
 from typing import Union, NoReturn
 
 HEADER = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36'}
 
 
-# Function returns ...
+# Returns a "response" object contains the server's response to the HTTP request.
 def get_response(url: str) -> requests.Response:
     response = requests.get(url, headers=HEADER)
     return response
 
 
+# Returns html-code of the page
 def get_html(response: requests.Response) -> str:
     return response.text
 
 
+# Returns "BeautifulSoup" object (represents the parsed document as a whole)
 def get_soup(html: str) -> BeautifulSoup:
     soup = BeautifulSoup(html, 'lxml')
     return soup
 
 
-# Getting ID's of articles for collection of their content
+# Returns the article IDs for finding the most recent article.
+# Numbering of articles on source sites is in the order of their creation, from smallest to largest.
 def get_articles_ids(soup: BeautifulSoup) -> str:
     ids = soup.find('div', {'class': 'feed'}).get('data-feed-exclude-ids')
     return ids
 
 
-# Finds the last article ID at parsing time
+# Returns most recent article
 def get_max_article_id(url: str) -> int:
     response = get_response(url)
     html = get_html(response)
     soup = get_soup(html)
     articles_ids = get_articles_ids(soup)
-    max_article_id = max((int(i) for i in articles_ids[1:-1].split(',')))
     # '[12,34,56]' -> 56
+    max_article_id = max((int(i) for i in articles_ids[1:-1].split(',')))
 
     return max_article_id
 
 
+# Returns a json array with data about the article (subsite label, author name, rating, comments, favorites ...)
 def get_article_info(soup: BeautifulSoup) -> dict:
     article_info = soup.find('div', {'class': 'l-hidden entry_data'}).get('data-article-info')
 
@@ -57,6 +61,7 @@ def get_article_info(soup: BeautifulSoup) -> dict:
     return article_info
 
 
+# Returns title of the article from h1-tag
 def get_title(soup: BeautifulSoup) -> Union[str, None]:
     try:
         h1 = soup.find('h1').text
@@ -72,17 +77,20 @@ def get_title(soup: BeautifulSoup) -> Union[str, None]:
     return h1
 
 
+# Returns cleaned text of the article
 def get_text(soup: BeautifulSoup) -> str:
     text_blocks = soup.find('div', {'class': 'content content--full'}).find_all('div', {'class': 'l-island-a'})
     return normalizer.normalize_text(text_blocks)
 
 
+# Returns a list of hyperlinks from text
 def get_hyperlinks(soup: BeautifulSoup) -> str:
     hyperlinks = soup.find_all('a', {'rel': 'nofollow noreferrer noopener'})
     hyperlinks = json.dumps(normalizer.normalize_hyperlinks(hyperlinks))
     return hyperlinks
 
 
+# Returns a list of attachment links
 def get_attachments(soup: BeautifulSoup) -> str:
     videos = soup.find_all('div', {'data-andropov-type': 'video'})
     images = soup.find_all('div', {'data-andropov-type': 'image'})
@@ -90,7 +98,7 @@ def get_attachments(soup: BeautifulSoup) -> str:
     return json.dumps(normalizer.normalize_attachments(videos, images, tweets))
 
 
-# Getting author name and profile link.
+# Returns author name and profile link.
 def get_author(soup: BeautifulSoup) -> (str, str):
     try:
         author = soup.find('a', {'class': 'content-header-author__name'}).text
@@ -102,10 +110,7 @@ def get_author(soup: BeautifulSoup) -> (str, str):
     return normalizer.normalize_author(author), author_link
 
 
-# Getting subsite (articles subcategory) name and link
-# There are 2 signs that a profile is not a subsite:
-# 1. Presence of subfolders /s/ and /u/ in the URL
-# 2. Presence of account verification
+# Returns validated name of subsite and link
 def get_subsite(soup: BeautifulSoup, is_subsite: bool) -> (Union[str, None], Union[str, None]):
     subsite = soup.find('div', {'class': 'content-header-author__name'}).text
     subsite_link = soup.find('div', {'class': 'content-header__info'}).find('a').get('href')
@@ -116,8 +121,7 @@ def get_subsite(soup: BeautifulSoup, is_subsite: bool) -> (Union[str, None], Uni
     return normalizer.normalize_subsite(subsite) if subsite is not None else subsite, subsite_link
 
 
-# Getting company name and link
-# If
+# Returns validated name of company and link
 def get_company(soup: BeautifulSoup, is_subsite: bool) -> (Union[str, None], Union[str, None]):
     company = soup.find('div', {'class': 'content-header-author__name'}).text
     company_link = soup.find('div', {'class': 'content-header__info'}).find('a').get('href')
@@ -128,27 +132,32 @@ def get_company(soup: BeautifulSoup, is_subsite: bool) -> (Union[str, None], Uni
     return normalizer.normalize_company(company) if company is not None else company, company_link
 
 
+# Returns date and time article was published
 def get_date_time(soup: BeautifulSoup) -> (str, str):
     date_and_time = soup.find('time').get('title')
     date, time = normalizer.normalize_date_time(date_and_time)
     return date, time
 
 
+# Returns comments count at the time of parsing
 def get_comments_count(soup: BeautifulSoup) -> int:
     article_info = get_article_info(soup)
     return article_info['comments']
 
 
+# Returns rating at the time of parsing
 def get_rating(soup: BeautifulSoup) -> int:
     article_info = get_article_info(soup)
     return article_info['likes']
 
 
+# Returns additions to favorites count at the time of parsing
 def get_favorites(soup: BeautifulSoup) -> int:
     article_info = get_article_info(soup)
     return article_info['favorites']
 
 
+# Checking if the data is the author
 def check_author(soup: BeautifulSoup) -> bool:
     authors_fields = list()
 
@@ -166,15 +175,7 @@ def check_author(soup: BeautifulSoup) -> bool:
     return is_authors
 
 
-def check_verified(soup: BeautifulSoup) -> bool:
-    try:
-        is_verified = bool(soup.find('div', {'class': 'content-header-author__approved'}))
-    except AttributeError:
-        is_verified = False
-
-    return is_verified
-
-
+# Checking if the data is the subsite
 def check_subsite(soup: BeautifulSoup, is_authors: bool) -> bool:
     article_info = get_article_info(soup)
 
@@ -185,14 +186,17 @@ def check_subsite(soup: BeautifulSoup, is_authors: bool) -> bool:
     return is_subsite
 
 
+# Checking for 18+ content on a page
 def check_adult(soup: BeautifulSoup) -> bool:
     return bool(soup.find('div', {'class': 'adult'}))
 
 
+# Checking if needing to collect data from the page
 def check_parsable(response: requests.Response, is_adult_content: bool) -> bool:
     return response.status_code == 200 and not is_adult_content
 
 
+# Collecting data in a python dictionary
 def get_data(
         idx: int, soup: BeautifulSoup, response: requests.Response, is_parsable: bool, gen_url: str
 ) -> dict:
@@ -201,7 +205,6 @@ def get_data(
     if is_parsable:
         h1 = get_title(soup)
         is_authors = check_author(soup)
-        is_verified = check_verified(soup)
         is_subsite = check_subsite(soup, is_authors)
         author, author_link = get_author(soup)
         subsite, subsite_link = get_subsite(soup, is_subsite)
@@ -235,7 +238,6 @@ def get_data(
             'Comments count': comments,
             'Rating': rating,
             'Favorites': favorites,
-            '_is_verified': is_verified,
             '_is_subsite': is_subsite,
             '_is_author': is_authors,
             'Status Code': response.status_code
@@ -260,7 +262,6 @@ def get_data(
             'Comments count': None,
             'Rating': None,
             'Favorites': None,
-            '_is_verified': None,
             '_is_subsite': None,
             '_is_author': None,
             'Status Code': response.status_code
@@ -269,19 +270,19 @@ def get_data(
     return data
 
 
+# Decision-making function and data recording in different formats
 def parsing(
         url: str, start_idx: int, articles_count: int, delay: float,
         write_csv: bool, write_json: bool, write_texts: bool, source: str
 ) -> NoReturn:
 
     parsing_dt = datetime.now()
-    final_idx = start_idx - articles_count
 
     if write_csv:
-        storages.create_csv(parsing_dt, source)
+        writers.create_csv(parsing_dt, source)
 
     if write_json:
-        storages.create_json(parsing_dt, source)
+        writers.create_json(parsing_dt, source)
 
     while True:
         idx = start_idx
@@ -301,9 +302,9 @@ def parsing(
             articles_count -= 1
 
             if write_csv:
-                storages.write_csv(data, parsing_dt, source, write_texts)
+                writers.write_csv(data, parsing_dt, source, write_texts)
             if write_json:
-                storages.write_json(data, parsing_dt, source, articles_count)
+                writers.write_json(data, parsing_dt, source, articles_count)
 
         if articles_count == 0:
             break
@@ -311,4 +312,4 @@ def parsing(
         sleep(delay)
 
     if write_json:
-        storages.finalize_json(parsing_dt, source)
+        writers.finalize_json(parsing_dt, source)

@@ -1,3 +1,21 @@
+"""Parse command line arguments
+
+Run parameters:
+    vc                      - Parsing vc.ru
+    dtf                     - Parsing dtf.ru
+
+Command parameters (optional):
+    articles        : int   - Set number of articles to collect.                                   Default value: 100
+    article_id      : int   - Set ID from which the collection will start or a specific article
+    delay           : float - Set the delay in seconds between requests to the server.             Default value: 0.5
+    output_csv      : bool  - Save parsed result to .csv.                                          Default value: True
+    output_json     : bool  - Save parsed result as json to .json file.                            Default value: False
+    output_texts    : bool  - Save texts result to .csv.                                           Default value: False
+
+Example:
+    src/vc_parser/parser.py dtf --article 150 --output_json True
+"""
+
 import sys
 import argparse
 from typing import NoReturn
@@ -7,7 +25,7 @@ import data_collector
 def create_command_line_parser():
     parser_cl = argparse.ArgumentParser(prog='VC and DTF parser')
     subparsers_cl = parser_cl.add_subparsers(
-        dest='source', title='Possible commands', description='Commands must be entered as the first parameter'
+        dest='source', title='Possible commands', description='Command must be entered as the first parameter'
     )
 
     vc_parser = subparsers_cl.add_parser('vc')

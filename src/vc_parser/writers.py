@@ -21,6 +21,7 @@ HEADERS = ('ID',
            'Favorites')
 
 
+# Create csv with header
 def create_csv(parsing_datetime: datetime, source: str, header=HEADERS) -> NoReturn:
     with open(
             fr'files\{source}_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}.csv',
@@ -30,6 +31,7 @@ def create_csv(parsing_datetime: datetime, source: str, header=HEADERS) -> NoRet
         writer.writerow(header)
 
 
+# Writing data in created csv file
 def write_csv(data: dict, parsing_datetime: datetime, source: str, write_texts: bool) -> NoReturn:
 
     with open(
@@ -48,6 +50,7 @@ def write_csv(data: dict, parsing_datetime: datetime, source: str, write_texts: 
             writer.writerow((data['ID'], data['Text']))
 
 
+# Creating a json file and ensuring a valid output file structure
 def create_json(parsing_datetime: datetime, source: str) -> NoReturn:
     with open(
             fr'files\{source}_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}.json',
@@ -56,12 +59,13 @@ def create_json(parsing_datetime: datetime, source: str) -> NoReturn:
         file.write('[\n')
 
 
+# Writing data in json format in created json file
 def write_json(data: dict, parsing_datetime: datetime, source: str, articles_count: int) -> NoReturn:
     with open(
             fr'files\{source}_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}.json',
             'a', encoding='utf-8',  newline=''
     ) as file:
-        json_object = json.dumps(data, indent=4)
+        json_object = json.dumps({key: data[key] for key in HEADERS}, indent=4)
 
         if articles_count != 0:
             file.write(json_object + ',\n')
@@ -69,6 +73,7 @@ def write_json(data: dict, parsing_datetime: datetime, source: str, articles_cou
             file.write(json_object)
 
 
+# Closing square bracket is added after all the data has been collected to ensure the validity of json structure.
 def finalize_json(parsing_datetime: datetime, source: str):
     with open(
             fr'files\{source}_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}.json',

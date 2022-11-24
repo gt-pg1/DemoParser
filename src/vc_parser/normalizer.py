@@ -4,29 +4,36 @@ from typing import Iterable
 DATA_TRASH = ('Статьи редакции',)
 
 
+# "{title}\n\s{DATA_TRASH}\n\s" -> "{title}"
 def normalize_title(h1: str) -> str:
     if DATA_TRASH[0] in h1:
         h1 = h1.replace(DATA_TRASH[0], '')
     return h1.strip()
 
 
+# "\s\n{author}\s\n" -> "{author}"
 def normalize_author(author: str) -> str:
     return author.strip()
 
 
+# "\s\n{subsite}\s\n" -> "{subsite}"
 def normalize_subsite(subsite: str) -> str:
     return subsite.strip()
 
 
+# # "\s\n{company}\s\n" -> "{company}"
 def normalize_company(company: str) -> str:
     return company.strip()
 
 
+# "20.11.2022 08:45:30 (Europe/Moscow)" -> ("20.11.2022", "08:45:30")
 def normalize_date_time(date_and_time: str) -> (str, str):
     date_and_time = date_and_time.split()
     return date_and_time[0], date_and_time[1]
 
 
+# Eliminates json validity issue in case of repetition of quotes
+# ...company: "ООО "РОМАШКА"",... -> ...company: "ООО РОМАШКА"
 def normalize_json(dirty_json: str) -> str:
     occurrences = re.findall(r': \".*\"{1,3}.*\"', dirty_json)
 
@@ -50,6 +57,7 @@ def normalize_json(dirty_json: str) -> str:
     return dirty_json
 
 
+# Removes service blocks with content, json data or view count
 def normalize_text(text_blocks: Iterable) -> str:
     texts = []
     for block in text_blocks:
@@ -73,6 +81,7 @@ def normalize_text(text_blocks: Iterable) -> str:
     return '\n'.join(texts)
 
 
+# Cleans and collects hyperlinks to list
 def normalize_hyperlinks(dirty_hyperlinks: Iterable) -> list:
     hyperlinks = []
 
@@ -82,11 +91,13 @@ def normalize_hyperlinks(dirty_hyperlinks: Iterable) -> list:
     return hyperlinks
 
 
+# Cleans and collects attachments to dictionary
 def normalize_attachments(
         dirty_video: Iterable, dirty_images: Iterable, dirty_tweets: Iterable
 ) -> dict:
     attachments = dict()
 
+    # Videos can be in two types of video-blocks
     if dirty_video:
         video = []
 
