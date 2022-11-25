@@ -2,6 +2,7 @@ import csv
 import json
 from datetime import datetime
 from typing import NoReturn
+import os
 
 HEADERS = ('ID',
            'URL',
@@ -20,6 +21,12 @@ HEADERS = ('ID',
            'Rating',
            'Favorites')
 
+
+#
+def check_folder():
+    if not os.path.isdir('files'):
+        os.mkdir('files')
+    return True
 
 # Create csv with header
 def create_csv(parsing_datetime: datetime, source: str, header=HEADERS) -> NoReturn:

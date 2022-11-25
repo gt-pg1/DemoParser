@@ -278,6 +278,10 @@ def parsing(
 
     parsing_dt = datetime.now()
 
+    folder_exist = False
+    if not folder_exist:
+        folder_exist = writers.check_folder()
+
     if write_csv:
         writers.create_csv(parsing_dt, source)
 
@@ -295,10 +299,9 @@ def parsing(
 
         data = get_data(idx, soup, response, is_parsable, gen_url)
 
-        print(data)
-
         start_idx -= 1
         if is_parsable:
+            print(f'Осталось собрать статей: {articles_count}')
             articles_count -= 1
 
             if write_csv:
