@@ -5,9 +5,11 @@ import json
 from datetime import datetime
 import normalizer
 import writers
+import database
 from typing import Union, NoReturn
 
-HEADER = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36'}
+HEADER = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36'}
 
 
 # Returns a "response" object contains the server's response to the HTTP request.
@@ -272,10 +274,9 @@ def get_data(
 
 # Decision-making function and data recording in different formats
 def parsing(
-        url: str, start_idx: int, articles_count: int, delay: float,
+        url: str, parsed_ids: list, start_idx: int, articles_count: int, delay: float,
         write_csv: bool, write_json: bool, write_texts: bool, source: str
 ) -> NoReturn:
-
     parsing_dt = datetime.now()
 
     folder_exist = False
@@ -299,6 +300,9 @@ def parsing(
 
         data = get_data(idx, soup, response, is_parsable, gen_url)
 
+        if data['ID'] not in parsed_ids:
+            database.insert_data(data, source)
+
         start_idx -= 1
         if is_parsable:
             print(f'Осталось собрать статей: {articles_count}')
@@ -316,3 +320,5 @@ def parsing(
 
     if write_json:
         writers.finalize_json(parsing_dt, source)
+
+    print('Готово!')

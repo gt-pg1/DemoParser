@@ -20,6 +20,7 @@ import sys
 import argparse
 from typing import NoReturn
 import data_collector
+import database
 
 
 def create_command_line_parser():
@@ -83,25 +84,31 @@ def create_command_line_parser():
 
 def run_vc(namespace):
     url = 'https://vc.ru/'
+    source = 'vc'
+    database.create_table(source)
+    parsed_ids = database.get_parsed_ids(source)
 
     if namespace.article_id is None:
         namespace.article_id = data_collector.get_max_article_id(url)
 
     data_collector.parsing(
-        url, namespace.article_id, namespace.articles, namespace.delay,
+        url, parsed_ids, namespace.article_id, namespace.articles, namespace.delay,
         namespace.output_csv, namespace.output_json, namespace.output_texts, 'vc'
     )
 
 
 def run_dtf(namespace):
     url = 'https://dtf.ru/'
+    source = 'dtf'
+    database.create_table(source)
+    parsed_ids = database.get_parsed_ids(source)
 
     if namespace.article_id is None:
         namespace.article_id = data_collector.get_max_article_id(url)
 
     data_collector.parsing(
-        url, namespace.article_id, namespace.articles, namespace.delay,
-        namespace.output_csv, namespace.output_json, namespace.output_texts, 'dtf'
+        url, parsed_ids, namespace.article_id, namespace.articles, namespace.delay,
+        namespace.output_csv, namespace.output_json, namespace.output_texts, source
     )
 
 

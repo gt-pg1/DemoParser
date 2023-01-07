@@ -28,11 +28,12 @@ def check_folder():
         os.mkdir('files')
     return True
 
+
 # Create csv with header
 def create_csv(parsing_datetime: datetime, source: str, header=HEADERS) -> NoReturn:
     with open(
             fr'files\{source}_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}.csv',
-            'x', encoding='utf-8',  newline=''
+            'x', encoding='utf-8', newline=''
     ) as file:
         writer = csv.writer(file)
         writer.writerow(header)
@@ -40,10 +41,9 @@ def create_csv(parsing_datetime: datetime, source: str, header=HEADERS) -> NoRet
 
 # Writing data in created csv file
 def write_csv(data: dict, parsing_datetime: datetime, source: str, write_texts: bool) -> NoReturn:
-
     with open(
             fr'files\{source}_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}.csv',
-            'a', encoding='utf-8',  newline=''
+            'a', encoding='utf-8', newline=''
     ) as file:
         writer = csv.writer(file)
         writer.writerow((data[value] for value in HEADERS))
@@ -70,7 +70,7 @@ def create_json(parsing_datetime: datetime, source: str) -> NoReturn:
 def write_json(data: dict, parsing_datetime: datetime, source: str, articles_count: int) -> NoReturn:
     with open(
             fr'files\{source}_{parsing_datetime.strftime("%d-%m-%Y_%H-%M-%S")}.json',
-            'a', encoding='utf-8',  newline=''
+            'a', encoding='utf-8', newline=''
     ) as file:
         json_object = json.dumps({key: data[key] for key in HEADERS}, indent=4)
 
